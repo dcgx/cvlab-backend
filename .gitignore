@@ -1,0 +1,28 @@
+# Dependencies
+node_modules
+
+# Build
+dist
+
+# Environment (no commitear valores sensibles)
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Prisma
+prisma/migrations/**/migration_lock.toml

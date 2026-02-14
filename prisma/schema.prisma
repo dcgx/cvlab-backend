@@ -1,0 +1,12 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Modelos del dominio (User, Cv, JobOffer, Adaptation) se añaden
+// en la primera migración según cvlab-ai-specs/specs/data-model.md
+// Para este ticket de setup se deja vacío para validar que migrate dev funciona.

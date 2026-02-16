@@ -7,6 +7,73 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Modelos del dominio (User, Cv, JobOffer, Adaptation) se añaden
-// en la primera migración según cvlab-ai-specs/specs/data-model.md
-// Para este ticket de setup se deja vacío para validar que migrate dev funciona.
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  cvs Cv[]
+
+  @@map("users")
+}
+
+model Cv {
+  id              String   @id @default(uuid())
+  userId          String
+  alias           String
+  personalInfo    Json?    // { fullName, email, phone, location, linkedin, github }
+  experience      Json?    // Array de experiencias laborales
+  education       Json?    // Array de educación
+  skills          Json?    // { technical: [], soft: [] }
+  languages       Json?    // Array de idiomas
+  certifications Json?    // Array de certificaciones
+  projects        Json?    // Array de proyectos
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user                User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  baseAdaptations     Adaptation[] @relation("BaseCv")
+  adaptedAdaptations  Adaptation[] @relation("AdaptedCv")
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("cvs")
+}
+
+model JobOffer {
+  id           String    @id @default(uuid())
+  title        String
+  company      String?
+  description  String    @db.Text
+  requirements Json?     // Array de requisitos extraídos
+  analyzedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  adaptations Adaptation[]
+
+  @@index([createdAt])
+  @@map("job_offers")
+}
+
+model Adaptation {
+  id          String   @id @default(uuid())
+  baseCvId    String
+  jobOfferId  String?
+  adaptedCvId String
+  changes     Json?    // { sectionsReordered, skillsHighlighted, etc. }
+  createdAt   DateTime @default(now())
+
+  baseCv     Cv        @relation("BaseCv", fields: [baseCvId], references: [id], onDelete: Cascade)
+  adaptedCv  Cv        @relation("AdaptedCv", fields: [adaptedCvId], references: [id], onDelete: Cascade)
+  jobOffer   JobOffer? @relation(fields: [jobOfferId], references: [id], onDelete: SetNull)
+
+  @@index([baseCvId])
+  @@index([adaptedCvId])
+  @@index([createdAt])
+  @@map("adaptations")
+}

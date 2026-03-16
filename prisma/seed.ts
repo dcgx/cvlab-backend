@@ -16,7 +16,7 @@ async function main() {
   const user = await prisma.user.create({
     data: {
       email: DEFAULT_USER_EMAIL,
-      password: DEFAULT_USER_PASSWORD,
+      password: DEFAULT_USER_PASSWORD, // Opcional con Supabase Auth
       name: 'Usuario desarrollo',
     },
   })

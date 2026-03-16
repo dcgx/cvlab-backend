@@ -9,5 +9,6 @@ import { AuthModule } from '../auth/auth.module';
   imports: [PrismaModule, PdfModule, AuthModule],
   controllers: [CvController],
   providers: [CvService],
+  exports: [CvService],
 })
 export class CvModule {}

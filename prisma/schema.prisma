@@ -10,7 +10,7 @@ datasource db {
 model User {
   id        String   @id @default(uuid())
   email     String   @unique
-  password  String
+  password  String?  // Opcional cuando se usa Supabase Auth
   name      String?
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())

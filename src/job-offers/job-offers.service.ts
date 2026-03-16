@@ -38,6 +38,27 @@ function extractSkills(text: string): string[] {
   return [...new Set([...skills, ...keywords.slice(0, 10)])];
 }
 
+function extractCompany(text: string, title: string): string | null {
+  const lines = text.split(/\n/).map((l) => l.trim()).filter(Boolean);
+  const patterns = [
+    /^(?:en|at|@)\s+(.+?)(?:\s*[-–|]|$)/i,
+    /(?:empresa|company|compañía):\s*(.+?)(?:\n|$)/i,
+    /^(.+?)\s+[-–|]\s+.+$/,
+  ];
+  for (const line of lines.slice(0, 5)) {
+    for (const re of patterns) {
+      const m = line.match(re);
+      if (m && m[1]) {
+        const company = m[1].trim();
+        if (company.length >= 2 && company.length <= 100 && !title.includes(company)) {
+          return company;
+        }
+      }
+    }
+  }
+  return null;
+}
+
 @Injectable()
 export class JobOffersService {
   constructor(
@@ -61,6 +82,7 @@ export class JobOffersService {
     title: string;
     rawText?: string;
     sourceUrl?: string;
+    baseCvId?: string;
   }) {
     let rawText = body.rawText ?? '';
     if (body.sourceUrl && (!rawText || rawText.length < 50)) {
@@ -80,6 +102,7 @@ export class JobOffersService {
       TECH_KEYWORDS.some((t) => k.includes(t) || t.includes(k)),
     );
     const keywords = extractKeywords(text);
+    const company = extractCompany(text, body.title);
 
     const analysis = {
       skills,
@@ -92,6 +115,7 @@ export class JobOffersService {
     const jobOffer = await this.prisma.jobOffer.create({
       data: {
         title: body.title,
+        company: company ?? null,
         description: text.slice(0, 5000),
         sourceUrl: body.sourceUrl ?? null,
         requirements: analysis as object,
@@ -99,15 +123,29 @@ export class JobOffersService {
       },
     });
 
-    const cvs = await this.prisma.cv.findMany({
-      where: { userId },
-      orderBy: { updatedAt: 'desc' },
-      take: 1,
-    });
+    let baseCv: { id: string; alias: string; personalInfo: unknown; experience: unknown; education: unknown; skills: unknown; languages: unknown; certifications: unknown; projects: unknown } | null = null;
+
+    if (body.baseCvId) {
+      const cv = await this.prisma.cv.findFirst({
+        where: { id: body.baseCvId, userId },
+      });
+      if (!cv) {
+        throw new BadRequestException(
+          'El CV base no existe o no pertenece al usuario',
+        );
+      }
+      baseCv = cv;
+    } else {
+      const cvs = await this.prisma.cv.findMany({
+        where: { userId },
+        orderBy: { updatedAt: 'desc' },
+        take: 1,
+      });
+      baseCv = cvs[0] ?? null;
+    }
 
     let cvId: string;
-    if (cvs.length > 0) {
-      const baseCv = cvs[0];
+    if (baseCv) {
       const adaptedCv = await this.prisma.cv.create({
         data: {
           userId,

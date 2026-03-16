@@ -2,6 +2,7 @@ import {
   IsString,
   IsOptional,
   IsUrl,
+  IsUUID,
   MinLength,
   ValidateIf,
 } from 'class-validator';
@@ -19,4 +20,8 @@ export class AnalyzeAndGenerateDto {
   @IsOptional()
   @IsUrl()
   sourceUrl?: string;
+
+  @IsOptional()
+  @IsUUID('4')
+  baseCvId?: string;
 }

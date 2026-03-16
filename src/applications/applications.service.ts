@@ -13,23 +13,6 @@ interface FindAllFilters {
 export class ApplicationsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  private async getDefaultUserId(): Promise<string> {
-    const defaultEmail = process.env.DEFAULT_USER_EMAIL ?? 'dev@cvlab.local';
-    let user = await this.prisma.user.findUnique({
-      where: { email: defaultEmail },
-    });
-    if (!user) {
-      user = await this.prisma.user.create({
-        data: {
-          email: defaultEmail,
-          password: process.env.DEFAULT_USER_PASSWORD ?? 'dev-password',
-          name: 'Usuario desarrollo',
-        },
-      });
-    }
-    return user.id;
-  }
-
   private mapToResponse(app: {
     id: string;
     status: string;
@@ -61,8 +44,7 @@ export class ApplicationsService {
     };
   }
 
-  async findAll(filters: FindAllFilters) {
-    const userId = await this.getDefaultUserId();
+  async findAll(userId: string, filters: FindAllFilters) {
     const where: Record<string, unknown> = { userId };
 
     if (filters.cvId) where.cvId = filters.cvId;
@@ -87,8 +69,7 @@ export class ApplicationsService {
     return apps.map(this.mapToResponse);
   }
 
-  async findOne(id: string) {
-    const userId = await this.getDefaultUserId();
+  async findOne(userId: string, id: string) {
     const app = await this.prisma.application.findFirst({
       where: { id, userId },
       include: {
@@ -100,8 +81,7 @@ export class ApplicationsService {
     return this.mapToResponse(app);
   }
 
-  async create(body: { jobOfferId: string; cvId?: string; status?: string }) {
-    const userId = await this.getDefaultUserId();
+  async create(userId: string, body: { jobOfferId: string; cvId?: string; status?: string }) {
     const app = await this.prisma.application.create({
       data: {
         userId,
@@ -117,8 +97,7 @@ export class ApplicationsService {
     return this.mapToResponse(app);
   }
 
-  async update(id: string, body: { status?: string; notes?: string }) {
-    const userId = await this.getDefaultUserId();
+  async update(userId: string, id: string, body: { status?: string; notes?: string }) {
     const existing = await this.prisma.application.findFirst({
       where: { id, userId },
     });

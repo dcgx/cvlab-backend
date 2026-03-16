@@ -1,6 +1,9 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
+import { loadSupabaseEnv } from './config/env.loader';
+
+loadSupabaseEnv();
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);

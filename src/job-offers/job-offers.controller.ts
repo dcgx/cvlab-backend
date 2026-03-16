@@ -1,14 +1,19 @@
-import { Controller, Post, Body } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards } from '@nestjs/common';
 import { JobOffersService } from './job-offers.service';
+import { AnalyzeAndGenerateDto } from './dto/analyze-and-generate.dto';
+import { OptionalSupabaseAuthGuard } from '../auth/optional-supabase-auth.guard';
+import { CurrentUserId } from '../auth/current-user.decorator';
 
 @Controller('job-offers')
+@UseGuards(OptionalSupabaseAuthGuard)
 export class JobOffersController {
   constructor(private readonly jobOffersService: JobOffersService) {}
 
   @Post('analyze-and-generate-cv')
   async analyzeAndGenerateCv(
-    @Body() body: { title: string; rawText: string; sourceUrl?: string },
+    @CurrentUserId() userId: string,
+    @Body() body: AnalyzeAndGenerateDto,
   ) {
-    return this.jobOffersService.analyzeAndGenerateCv(body);
+    return this.jobOffersService.analyzeAndGenerateCv(userId, body);
   }
 }

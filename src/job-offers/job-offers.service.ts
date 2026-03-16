@@ -1,4 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
+import axios from 'axios';
+import * as cheerio from 'cheerio';
 import { PrismaService } from '../prisma/prisma.service';
 import { CvService } from '../cv/cv.service';
 
@@ -43,25 +45,36 @@ export class JobOffersService {
     private readonly cvService: CvService,
   ) {}
 
-  private async getDefaultUserId(): Promise<string> {
-    const defaultEmail = process.env.DEFAULT_USER_EMAIL ?? 'dev@cvlab.local';
-    let user = await this.prisma.user.findUnique({
-      where: { email: defaultEmail },
+  private async fetchTextFromUrl(url: string): Promise<string> {
+    const { data } = await axios.get(url, {
+      timeout: 10000,
+      headers: { 'User-Agent': 'CvLab-Bot/1.0' },
+      maxRedirects: 3,
+      validateStatus: (s: number) => s >= 200 && s < 400,
     });
-    if (!user) {
-      user = await this.prisma.user.create({
-        data: {
-          email: defaultEmail,
-          password: process.env.DEFAULT_USER_PASSWORD ?? 'dev-password',
-          name: 'Usuario desarrollo',
-        },
-      });
-    }
-    return user.id;
+    const $ = cheerio.load(data);
+    $('script, style, nav, footer').remove();
+    return $('body').text().replace(/\s+/g, ' ').trim().slice(0, 15000);
   }
 
-  async analyzeAndGenerateCv(body: { title: string; rawText: string; sourceUrl?: string }) {
-    const text = body.rawText ?? '';
+  async analyzeAndGenerateCv(userId: string, body: {
+    title: string;
+    rawText?: string;
+    sourceUrl?: string;
+  }) {
+    let rawText = body.rawText ?? '';
+    if (body.sourceUrl && (!rawText || rawText.length < 50)) {
+      try {
+        rawText = await this.fetchTextFromUrl(body.sourceUrl);
+      } catch (err) {
+        const msg =
+          err instanceof Error ? err.message : 'Error desconocido';
+        throw new BadRequestException(
+          `No se pudo obtener contenido de la URL: ${msg}`,
+        );
+      }
+    }
+    const text = rawText;
     const skills = extractSkills(text);
     const technologies = extractKeywords(text).filter((k) =>
       TECH_KEYWORDS.some((t) => k.includes(t) || t.includes(k)),
@@ -86,7 +99,6 @@ export class JobOffersService {
       },
     });
 
-    const userId = await this.getDefaultUserId();
     const cvs = await this.prisma.cv.findMany({
       where: { userId },
       orderBy: { updatedAt: 'desc' },
@@ -136,7 +148,7 @@ export class JobOffersService {
         certifications: [],
         languages: [],
       };
-      const created = await this.cvService.create(cvPayload);
+      const created = await this.cvService.create(userId, cvPayload);
       cvId = created.id;
     }
 

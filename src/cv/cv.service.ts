@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { PdfService } from '../pdf/pdf.service';
 
 function mapPayloadToDb(payload: Record<string, unknown>) {
   const firstName = (payload.firstName as string) ?? '';
@@ -86,27 +87,12 @@ function mapDbToPayload(cv: {
 
 @Injectable()
 export class CvService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly pdfService: PdfService,
+  ) {}
 
-  private async getDefaultUserId(): Promise<string> {
-    const defaultEmail = process.env.DEFAULT_USER_EMAIL ?? 'dev@cvlab.local';
-    let user = await this.prisma.user.findUnique({
-      where: { email: defaultEmail },
-    });
-    if (!user) {
-      user = await this.prisma.user.create({
-        data: {
-          email: defaultEmail,
-          password: process.env.DEFAULT_USER_PASSWORD ?? 'dev-password',
-          name: 'Usuario desarrollo',
-        },
-      });
-    }
-    return user.id;
-  }
-
-  async findAll() {
-    const userId = await this.getDefaultUserId();
+  async findAll(userId: string) {
     const cvs = await this.prisma.cv.findMany({
       where: { userId },
       orderBy: { updatedAt: 'desc' },
@@ -118,8 +104,7 @@ export class CvService {
     }));
   }
 
-  async findOne(id: string) {
-    const userId = await this.getDefaultUserId();
+  async findOne(userId: string, id: string) {
     const cv = await this.prisma.cv.findFirst({
       where: { id, userId },
     });
@@ -127,8 +112,7 @@ export class CvService {
     return mapDbToPayload(cv);
   }
 
-  async create(payload: Record<string, unknown>) {
-    const userId = await this.getDefaultUserId();
+  async create(userId: string, payload: Record<string, unknown>) {
     const data = mapPayloadToDb(payload);
     const cv = await this.prisma.cv.create({
       data: {
@@ -146,8 +130,7 @@ export class CvService {
     return mapDbToPayload(cv);
   }
 
-  async update(id: string, payload: Record<string, unknown>) {
-    const userId = await this.getDefaultUserId();
+  async update(userId: string, id: string, payload: Record<string, unknown>) {
     const existing = await this.prisma.cv.findFirst({
       where: { id, userId },
     });
@@ -170,13 +153,30 @@ export class CvService {
     return mapDbToPayload(cv);
   }
 
-  async delete(id: string) {
-    const userId = await this.getDefaultUserId();
+  async delete(userId: string, id: string) {
     const existing = await this.prisma.cv.findFirst({
       where: { id, userId },
     });
     if (!existing) return null;
     await this.prisma.cv.delete({ where: { id } });
     return true;
+  }
+
+  async generatePdfBuffer(userId: string, cvId: string): Promise<Buffer | null> {
+    const cv = await this.prisma.cv.findFirst({
+      where: { id: cvId, userId },
+    });
+    if (!cv) return null;
+    const cvData = {
+      personalInfo: (cv.personalInfo as Record<string, unknown>) ?? {},
+      experience: (cv.experience as unknown[]) ?? [],
+      education: (cv.education as unknown[]) ?? [],
+      skills: (cv.skills as { technical?: string[]; soft?: string[] }) ?? {},
+      languages: (cv.languages as unknown[]) ?? [],
+      certifications: (cv.certifications as unknown[]) ?? [],
+      projects: (cv.projects as unknown[]) ?? [],
+      alias: cv.alias,
+    };
+    return this.pdfService.generateFromCv(cvData);
   }
 }

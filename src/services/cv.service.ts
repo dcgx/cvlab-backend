@@ -1,6 +1,5 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { PdfService } from '../pdf/pdf.service';
+import { prisma } from '../lib/prisma';
+import { PdfService } from './pdf.service';
 
 function mapPayloadToDb(payload: Record<string, unknown>) {
   const firstName = (payload.firstName as string) ?? '';
@@ -85,15 +84,11 @@ function mapDbToPayload(cv: {
   };
 }
 
-@Injectable()
 export class CvService {
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly pdfService: PdfService,
-  ) {}
+  constructor(private readonly pdfService: PdfService) {}
 
   async findAll(userId: string) {
-    const cvs = await this.prisma.cv.findMany({
+    const cvs = await prisma.cv.findMany({
       where: { userId },
       orderBy: { updatedAt: 'desc' },
     });
@@ -105,7 +100,7 @@ export class CvService {
   }
 
   async findOne(userId: string, id: string) {
-    const cv = await this.prisma.cv.findFirst({
+    const cv = await prisma.cv.findFirst({
       where: { id, userId },
     });
     if (!cv) return null;
@@ -114,7 +109,7 @@ export class CvService {
 
   async create(userId: string, payload: Record<string, unknown>) {
     const data = mapPayloadToDb(payload);
-    const cv = await this.prisma.cv.create({
+    const cv = await prisma.cv.create({
       data: {
         userId,
         alias: data.alias,
@@ -131,13 +126,13 @@ export class CvService {
   }
 
   async update(userId: string, id: string, payload: Record<string, unknown>) {
-    const existing = await this.prisma.cv.findFirst({
+    const existing = await prisma.cv.findFirst({
       where: { id, userId },
     });
     if (!existing) return null;
 
     const data = mapPayloadToDb(payload);
-    const cv = await this.prisma.cv.update({
+    const cv = await prisma.cv.update({
       where: { id },
       data: {
         alias: data.alias,
@@ -154,16 +149,16 @@ export class CvService {
   }
 
   async delete(userId: string, id: string) {
-    const existing = await this.prisma.cv.findFirst({
+    const existing = await prisma.cv.findFirst({
       where: { id, userId },
     });
     if (!existing) return null;
-    await this.prisma.cv.delete({ where: { id } });
+    await prisma.cv.delete({ where: { id } });
     return true;
   }
 
   async generatePdfBuffer(userId: string, cvId: string): Promise<Buffer | null> {
-    const cv = await this.prisma.cv.findFirst({
+    const cv = await prisma.cv.findFirst({
       where: { id: cvId, userId },
     });
     if (!cv) return null;

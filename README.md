@@ -1,11 +1,11 @@
 # cvlab-backend
 
-API NestJS con Prisma y Supabase (PostgreSQL).
+API Bun con Prisma y Supabase (PostgreSQL).
 
 ## Requisitos
 
-- Node.js 18+
-- pnpm
+- [Bun](https://bun.sh) (runtime principal)
+- pnpm o bun (gestor de paquetes)
 - Cuenta en [Supabase](https://supabase.com)
 
 ## Configuración de Supabase
@@ -31,13 +31,13 @@ No commitear `.env`; solo usar `.env.example` con placeholders para documentar v
 
 ```bash
 # Aplicar migraciones a Supabase
-pnpm prisma migrate deploy
+bun prisma migrate deploy
 
 # Seed (usuario dev por defecto)
-pnpm prisma db seed
+bun prisma db seed
 
 # Prisma Studio (explorar tablas)
-pnpm prisma studio
+bun prisma studio
 ```
 
 ### Si falla P1001 "Can't reach database server"
@@ -50,8 +50,8 @@ La conexión directa usa IPv6. Si tu red no lo soporta, usa el **pooler**:
 ## Instalación
 
 ```bash
-cd cvlab-backend
-pnpm install
+cd cvlab-api  # o cvlab-backend
+pnpm install  # o bun install
 ```
 
 ## Prisma
@@ -59,36 +59,40 @@ pnpm install
 Generar el cliente Prisma (necesario antes de levantar la app):
 
 ```bash
-pnpm prisma generate
+bun prisma generate
 ```
 
 Cuando el schema tenga modelos, primera migración:
 
 ```bash
-pnpm prisma migrate dev --name init
+bun prisma migrate dev --name init
 ```
 
 ## Desarrollo
 
 ```bash
-pnpm run start:dev
+bun run dev
 ```
 
-La API queda en `http://localhost:3000` (o el `PORT` definido en `.env`).
+La API queda en `http://localhost:3000/api` (o el `PORT` definido en `.env`).
 
 ### Endpoints
 
-- **GET /health** — Estado de la API y conexión a la base de datos. Responde 200 con `{ status: 'ok', database: 'connected' | 'disconnected' }`.
+- **GET /api/health** — Estado de la API y conexión a la base de datos
+- **GET/POST/PATCH/DELETE /api/cvs** — CRUD de CVs
+- **GET /api/cvs/:id/pdf** — Descargar CV en PDF
+- **GET/POST/PATCH /api/applications** — Postulaciones
+- **POST /api/job-offers/analyze-and-generate-cv** — Analizar oferta y generar CV
 
 ## Build
 
 ```bash
-pnpm run build
+bun run build
 ```
 
 ## Producción
 
 ```bash
-pnpm prisma migrate deploy
-pnpm run start:prod
+bun prisma migrate deploy
+bun run start
 ```

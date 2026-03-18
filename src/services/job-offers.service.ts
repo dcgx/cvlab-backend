@@ -1,14 +1,13 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
-import { PrismaService } from '../prisma/prisma.service';
-import { CvService } from '../cv/cv.service';
+import { prisma } from '../lib/prisma';
+import { CvService } from './cv.service';
 
 const TECH_KEYWORDS = [
   'javascript', 'typescript', 'react', 'vue', 'angular', 'node', 'python', 'java',
   'sql', 'postgresql', 'mongodb', 'redis', 'aws', 'docker', 'kubernetes', 'git',
   'rest', 'graphql', 'agile', 'scrum', 'ci/cd', 'terraform', 'linux', 'next.js',
-  'nuxt', 'nestjs', 'express', 'fastapi', 'django', 'spring', 'prisma', 'tailwind',
+  'nuxt', 'bun', 'express', 'fastapi', 'django', 'spring', 'prisma', 'tailwind',
 ];
 
 function extractKeywords(text: string): string[] {
@@ -59,12 +58,8 @@ function extractCompany(text: string, title: string): string | null {
   return null;
 }
 
-@Injectable()
 export class JobOffersService {
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly cvService: CvService,
-  ) {}
+  constructor(private readonly cvService: CvService) {}
 
   private async fetchTextFromUrl(url: string): Promise<string> {
     const { data } = await axios.get(url, {
@@ -89,11 +84,8 @@ export class JobOffersService {
       try {
         rawText = await this.fetchTextFromUrl(body.sourceUrl);
       } catch (err) {
-        const msg =
-          err instanceof Error ? err.message : 'Error desconocido';
-        throw new BadRequestException(
-          `No se pudo obtener contenido de la URL: ${msg}`,
-        );
+        const msg = err instanceof Error ? err.message : 'Error desconocido';
+        throw new Error(`No se pudo obtener contenido de la URL: ${msg}`);
       }
     }
     const text = rawText;
@@ -112,7 +104,7 @@ export class JobOffersService {
       keywords,
     };
 
-    const jobOffer = await this.prisma.jobOffer.create({
+    const jobOffer = await prisma.jobOffer.create({
       data: {
         title: body.title,
         company: company ?? null,
@@ -126,17 +118,15 @@ export class JobOffersService {
     let baseCv: { id: string; alias: string; personalInfo: unknown; experience: unknown; education: unknown; skills: unknown; languages: unknown; certifications: unknown; projects: unknown } | null = null;
 
     if (body.baseCvId) {
-      const cv = await this.prisma.cv.findFirst({
+      const cv = await prisma.cv.findFirst({
         where: { id: body.baseCvId, userId },
       });
       if (!cv) {
-        throw new BadRequestException(
-          'El CV base no existe o no pertenece al usuario',
-        );
+        throw new Error('El CV base no existe o no pertenece al usuario');
       }
       baseCv = cv;
     } else {
-      const cvs = await this.prisma.cv.findMany({
+      const cvs = await prisma.cv.findMany({
         where: { userId },
         orderBy: { updatedAt: 'desc' },
         take: 1,
@@ -146,7 +136,7 @@ export class JobOffersService {
 
     let cvId: string;
     if (baseCv) {
-      const adaptedCv = await this.prisma.cv.create({
+      const adaptedCv = await prisma.cv.create({
         data: {
           userId,
           alias: `${baseCv.alias} - ${body.title}`,
@@ -159,7 +149,7 @@ export class JobOffersService {
           projects: baseCv.projects ?? undefined,
         },
       });
-      await this.prisma.adaptation.create({
+      await prisma.adaptation.create({
         data: {
           baseCvId: baseCv.id,
           jobOfferId: jobOffer.id,
@@ -190,7 +180,7 @@ export class JobOffersService {
       cvId = created.id;
     }
 
-    const application = await this.prisma.application.create({
+    const application = await prisma.application.create({
       data: {
         userId,
         jobOfferId: jobOffer.id,

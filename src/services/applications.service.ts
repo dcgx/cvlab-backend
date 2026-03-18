@@ -1,5 +1,4 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { prisma } from '../lib/prisma';
 
 interface FindAllFilters {
   cvId?: string;
@@ -9,10 +8,7 @@ interface FindAllFilters {
   to?: string;
 }
 
-@Injectable()
 export class ApplicationsService {
-  constructor(private readonly prisma: PrismaService) {}
-
   private mapToResponse(app: {
     id: string;
     status: string;
@@ -58,7 +54,7 @@ export class ApplicationsService {
       if (filters.to) (where.createdAt as Record<string, Date>).lte = new Date(filters.to);
     }
 
-    const apps = await this.prisma.application.findMany({
+    const apps = await prisma.application.findMany({
       where,
       include: {
         cv: { select: { alias: true } },
@@ -66,11 +62,11 @@ export class ApplicationsService {
       },
       orderBy: { updatedAt: 'desc' },
     });
-    return apps.map(this.mapToResponse);
+    return apps.map((a) => this.mapToResponse(a));
   }
 
   async findOne(userId: string, id: string) {
-    const app = await this.prisma.application.findFirst({
+    const app = await prisma.application.findFirst({
       where: { id, userId },
       include: {
         cv: { select: { alias: true } },
@@ -82,7 +78,7 @@ export class ApplicationsService {
   }
 
   async create(userId: string, body: { jobOfferId: string; cvId?: string; status?: string }) {
-    const app = await this.prisma.application.create({
+    const app = await prisma.application.create({
       data: {
         userId,
         jobOfferId: body.jobOfferId,
@@ -98,7 +94,7 @@ export class ApplicationsService {
   }
 
   async update(userId: string, id: string, body: { status?: string; notes?: string }) {
-    const existing = await this.prisma.application.findFirst({
+    const existing = await prisma.application.findFirst({
       where: { id, userId },
     });
     if (!existing) return null;
@@ -107,7 +103,7 @@ export class ApplicationsService {
     if (body.status !== undefined) data.status = body.status;
     if (body.notes !== undefined) data.notes = body.notes;
 
-    const app = await this.prisma.application.update({
+    const app = await prisma.application.update({
       where: { id },
       data,
       include: {

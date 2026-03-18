@@ -1,4 +1,3 @@
-import { Injectable } from '@nestjs/common';
 import * as PDFDocument from 'pdfkit';
 
 export interface CvData {
@@ -12,7 +11,6 @@ export interface CvData {
   alias?: string;
 }
 
-@Injectable()
 export class PdfService {
   async generateFromCv(cv: CvData): Promise<Buffer> {
     return new Promise((resolve, reject) => {
@@ -34,7 +32,6 @@ export class PdfService {
       if (pi.phone) doc.text(pi.phone, { align: 'center' });
       doc.moveDown(1);
 
-      // Sección experiencia
       const exp = (cv.experience ?? []) as Array<{
         title?: string;
         company?: string;
@@ -54,7 +51,6 @@ export class PdfService {
         doc.moveDown(0.5);
       }
 
-      // Sección educación
       const edu = (cv.education ?? []) as Array<{
         degree?: string;
         institution?: string;
@@ -71,7 +67,6 @@ export class PdfService {
         doc.moveDown(0.5);
       }
 
-      // Sección skills
       const skills = cv.skills ?? {};
       const tech = [...(skills.technical ?? []), ...(skills.soft ?? [])];
       if (tech.length > 0) {
